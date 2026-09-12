@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111">
+<title>バス停暗記</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{background:#111;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif;touch-action:manipulation}
+.screen{position:fixed;inset:0;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));display:flex;flex-direction:column}
+.hidden{display:none!important}
+h1{font-size:28px;text-align:center;margin:10px 0 18px}
+#routeList{overflow:auto;display:flex;flex-direction:column;gap:10px}
+.routeBtn{width:100%;padding:17px 14px;border:1px solid #555;border-radius:14px;background:#1d1d1d;color:#fff;font-size:20px;font-weight:700;text-align:left}
+#routeTitle{font-size:clamp(27px,7vw,40px);font-weight:800;text-align:center;line-height:1.3}
+#progress{text-align:center;font-size:14px;opacity:.55;padding:3px 0 8px}
+#route{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+.slot{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:8px 12px;border:1px solid #444;border-radius:16px;background:#1b1b1b;font-size:clamp(23px,6vw,34px);font-weight:700;line-height:1.25}
+.slot.next{background:#f4edcf;color:#171717;border:2px solid #d8cfa9;font-size:clamp(28px,7.5vw,44px);font-weight:800}
+.slot.empty{visibility:hidden}
+#controls{display:flex;gap:8px;padding-top:10px}
+button{border:0;border-radius:11px;padding:11px 8px;font-size:15px;background:#333;color:#fff}
+#backTitle,#backSelect{flex:1}
+#done{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:34px;font-weight:800}
+#done small{display:block;margin-top:10px;font-size:15px;opacity:.6;font-weight:400}
+</style>
+</head>
+<body>
+<div id="selectScreen" class="screen">
+<h1>路線を選択</h1>
+<div id="routeList"></div>
+</div>
+<div id="titleScreen" class="screen hidden" style="align-items:center;justify-content:center;text-align:center">
+<div id="routeTitle"></div>
+</div>
+<div id="routeScreen" class="screen hidden">
+<div id="progress"></div>
+<div id="route">
+<div class="slot" id="s0"></div>
+<div class="slot" id="s1"></div>
+<div class="slot next" id="s2"></div>
+</div>
+<div id="done" class="hidden"><div>終点です<small>「最初に戻る」でタイトルへ戻れます</small></div></div>
+<div id="controls">
+<button id="backTitle" type="button">最初に戻る</button>
+<button id="backSelect" type="button">路線選択</button>
+</div>
+</div>
+<script>
+const routes=[{"title": "西八→市役所→川小", "stops": ["西八王子駅", "日吉八王子神社入口", "市役所南", "八王子市役所", "鶴巻橋", "中野さつき公園", "中野北小", "遺跡公園", "中野団地", "西中野３丁目", "東楢原", "神社前", "一本松", "楢原町", "唐松", "川口やまゆり館", "桜株（さくらかぶ）", "新川口", "榎木", "上榎木", "川口小学校"]}, {"title": "川小→市役所→西八", "stops": ["川口小学校", "上榎木", "榎木", "新川口", "桜株（さくらかぶ）", "川口やまゆり館", "唐松", "楢原町", "一本松", "神社前", "東楢原", "西中野３丁目", "中野団地", "遺跡公園", "中野北小", "中野さつき公園", "鶴巻橋", "八王子市役所", "市役所南", "日吉八王子神社入口", "西八王子駅"]}, {"title": "恩タ→美山町", "stops": ["恩方ターミナル", "縄切", "萩園", "御屋敷入口", "馬込松木", "美山小学校", "小足（こあし）", "美山工業団地", "仲井", "二本杉", "美山町"]}, {"title": "美山町→恩タ", "stops": ["美山町", "二本杉", "仲井", "美山工業団地", "小足（こあし）", "美山小学校", "馬込松木", "御屋敷入口", "萩園", "縄切", "恩方ターミナル"]}, {"title": "高北→大久保→陣馬高原", "stops": ["高尾駅北口", "森林科学園", "霞ヶ丘住宅", "宮の前", "霊園前・八王子城跡入口", "霊園正門", "タウン入口", "川原宿大橋", "川原宿", "上川原宿（かみかわらじゅく）", "松竹（まつたけ）", "恩方事務所", "大久保", "恩方中学校", "佐戸（さと）", "駒木野（こまぎの）", "黒沼田（くるみた）", "狐塚（きつねづか）", "力石（ちからいし）", "宮の下", "夕焼小焼", "関場（せきば）", "下川井野", "川井野", "くぬぎ沢橋", "下案下（しもあんげ）", "陣馬高原下"]}, {"title": "陣馬高原→大久保→高北", "stops": ["陣馬高原下", "下案下（しもあんげ）", "くぬぎ沢橋", "川井野", "下川井野", "関場（せきば）", "夕焼小焼", "宮の下", "力石（ちからいし）", "狐塚（きつねづか）", "黒沼田（くるみた）", "駒木野（こまぎの）", "佐戸（さと）", "恩方中学校", "大久保", "恩方事務所", "松竹（まつたけ）", "上川原宿（かみかわらじゅく）", "川原宿", "川原宿大橋", "タウン入口", "霊園正門", "霊園前・八王子城跡入口", "宮の前", "霞ヶ丘住宅", "森林科学園", "高尾駅北口"]}, {"title": "京八→純心→秋川", "stops": ["京王八王子駅", "八王子駅北口", "桑並木通り", "浅川大橋南", "八王子郵便局", "天神前・イオン八王子滝山前", "イオン八王子滝山（ひ10のみ）", "道の駅八王子滝山入口", "梅坪町（うめつぼちょう）", "新道丹木町", "純心女子学園", "丹木１丁目", "丹木２丁目", "滝山城址下", "加住町一丁目", "加住小学校", "宮下橋", "東宮下", "宮下［シルバービレッジ八王子西前］", "下戸吹・杏林大学入口（きょうりん）", "落合橋", "戸吹", "上戸吹", "戸吹北工業団地", "秋留橋", "サマーランド（ひ03のみ）", "秋留橋", "牛沼", "油平（あぶらだい）", "油平北", "秋川駅"]}, {"title": "秋川→純心→京八", "stops": ["秋川駅", "油平北", "油平（あぶらだい）", "牛沼", "秋留橋", "サマーランド（ひ03のみ）", "秋留橋", "戸吹北工業団地", "上戸吹", "戸吹", "落合橋", "下戸吹・杏林大学入口（きょうりん）", "宮下［シルバービレッジ八王子西前］", "東宮下", "宮下橋", "加住小学校", "加住町一丁目", "滝山城址下", "丹木２丁目", "丹木１丁目", "純心女子学園", "新道丹木町", "梅坪町（うめつぼちょう）", "道の駅八王子滝山入口", "イオン八王子滝山（ひ10のみ）", "天神前・イオン八王子滝山前", "八王子郵便局", "浅川大橋南", "桑並木通り", "八王子駅北口", "京王八王子駅"]}, {"title": "京八→川小→上霊→五日市", "stops": ["京王八王子駅", "八王子駅北口", "横山町", "横山町三丁目", "八日町一丁目", "八日町四丁目", "織物組合前", "本郷横丁", "平岡町", "中野上町郵便局（なかのかみちょう）", "中野", "西中野２丁目", "西中野３丁目", "東楢原", "神社前", "一本松", "楢原町", "唐松", "川口やまゆり館", "桜株（さくらかぶ）", "新川口", "榎木", "上榎木", "川口小学校", "川口事務所", "川口橋", "影沢", "圏央道上川橋", "ＧＭＧゴルフ場", "森下", "戸沢", "田守神社前", "同友会ホーム", "上川霊園", "同友会ホーム", "田守神社前", "上川口小学校", "久保橋", "帝京八王子高校入口", "糀谷（こうじや）", "今熊", "今熊山登山口", "小峰公園", "留原（ととはら）", "小林坂", "中村", "秋川橋", "武蔵五日市駅"]}, {"title": "五日市→上霊→川小→京八", "stops": ["武蔵五日市駅", "秋川橋", "中村", "小林坂", "留原（ととはら）", "小峰公園", "今熊山登山口", "今熊", "糀谷（こうじや）", "帝京八王子高校入口", "久保橋", "上川口小学校", "田守神社前", "同友会ホーム", "上川霊園", "同友会ホーム", "田守神社前", "戸沢", "森下", "ＧＭＧゴルフ場", "圏央道上川橋", "影沢", "川口橋", "川口事務所", "川口小学校", "上榎木", "榎木", "新川口", "桜株（さくらかぶ）", "川口やまゆり館", "唐松", "楢原町", "一本松", "神社前", "東楢原", "西中野３丁目", "西中野２丁目", "中野", "中野上町郵便局（なかのかみちょう）", "平岡町", "本郷横丁", "織物組合前", "八日町四丁目", "八日町一丁目", "横山町三丁目", "横山町", "八王子駅北口", "京王八王子駅"]}, {"title": "福生→五日市", "stops": ["福生駅西口", "長沢", "永田橋", "花之岡", "下草花（しもくさばな）", "草花（くさばな）", "門前（もんぜん）", "あきる野市民球場", "瀬戸岡御堂橋", "瀬戸岡会館入口", "小宮久保橋", "菅瀬橋（すがせばし）", "尾崎観音", "尾崎(あきる野市)", "三吉野", "下平井", "中平井", "上平井", "塩沢寳光寺前（ほうこうじ）", "文化の森入口", "日の出折返場", "落合", "諏訪下橋（すわした）", "羽生（はぶ）", "多摩聖地霊園前［萓窪］（かやくぼ）", "幸神", "大久野中学校", "小机", "小机坂下", "武蔵五日市駅"]}, {"title": "五日市→福生", "stops": ["武蔵五日市駅", "小机坂下", "小机", "大久野中学校", "幸神", "多摩聖地霊園前［萓窪］（かやくぼ）", "羽生（はぶ）", "諏訪下橋（すわした）", "落合", "日の出折返場", "文化の森入口", "塩沢寳光寺前（ほうこうじ）", "上平井", "中平井", "下平井", "三吉野", "尾崎(あきる野市)", "尾崎観音", "菅瀬橋（すがせばし）", "小宮久保橋", "瀬戸岡会館入口", "瀬戸岡御堂橋", "あきる野市民球場", "門前（もんぜん）", "草花（くさばな）", "下草花（しもくさばな）", "花之岡", "永田橋", "長沢", "福生駅西口"]}];
+let current=0,index=0;
+const selectScreen=document.getElementById("selectScreen");
+const titleScreen=document.getElementById("titleScreen");
+const routeScreen=document.getElementById("routeScreen");
+const routeList=document.getElementById("routeList");
+
+routes.forEach((r,n)=>{
+ const b=document.createElement("button");
+ b.className="routeBtn";
+ b.textContent=r.title;
+ b.onclick=()=>{
+   current=n; index=0;
+   document.getElementById("routeTitle").textContent=r.title;
+   selectScreen.classList.add("hidden");
+   titleScreen.classList.remove("hidden");
+ };
+ routeList.appendChild(b);
+});
+
+titleScreen.onclick=()=>{
+ titleScreen.classList.add("hidden");
+ routeScreen.classList.remove("hidden");
+ render();
+};
+
+function render(){
+ const s=routes[current].stops;
+ document.getElementById("progress").textContent=(index<s.length?index+1:s.length)+" / "+s.length;
+ if(index>=s.length){
+   document.getElementById("route").classList.add("hidden");
+   document.getElementById("done").classList.remove("hidden");
+   return;
+ }
+ document.getElementById("route").classList.remove("hidden");
+ document.getElementById("done").classList.add("hidden");
+ [index+2,index+1,index].forEach((v,k)=>{
+   const e=document.getElementById("s"+k);
+   e.textContent=s[v]||"";
+   e.classList.toggle("empty",!s[v]);
+ });
+}
+
+routeScreen.onclick=e=>{
+ if(e.target.closest("button")) return;
+ if(index<routes[current].stops.length){
+   index++;
+   render();
+   if(navigator.vibrate) navigator.vibrate(12);
+ }
+};
+
+document.getElementById("backTitle").onclick=e=>{
+ e.stopPropagation(); index=0;
+ routeScreen.classList.add("hidden");
+ titleScreen.classList.remove("hidden");
+};
+
+document.getElementById("backSelect").onclick=e=>{
+ e.stopPropagation(); index=0;
+ routeScreen.classList.add("hidden");
+ titleScreen.classList.add("hidden");
+ selectScreen.classList.remove("hidden");
+};
+</script>
+</body>
+</html>
